@@ -1,25 +1,70 @@
-import logo from './logo.svg';
 import './App.css';
 
-function App() {
+import React, { useEffect, useState } from 'react';
+
+import Form from './components/Form';
+import Quotes from './components/Quotes';
+import SignIn from './components/SignIn';
+
+window.Buffer = window.Buffer || require('buffer').Buffer;
+
+const App = ({ contract, currentUser, nearConfig, wallet }) => {
+  const [quotes, setQuotes] = useState([]);
+
+  useEffect(() => {
+    contract.fetchQuotes().then(setQuotes);
+  }, [contract]);
+
+  const onSubmit = (e) => {
+    e.preventDefault();
+
+    const { fieldset, quote } = e.target.elements;
+
+    fieldset.disabled = true;
+
+    contract.addQuote({ quote: quote.value }).then(() => {
+      contract.fetchQuotes().then((quotes) => {
+        setQuotes(quotes);
+        quote.value = '';
+        fieldset.disabled = false;
+        quote.focus();
+      });
+    });
+  };
+
+  const signIn = () => {
+    wallet.requestSignIn(
+      {
+        contractId: nearConfig.contractName,
+        methodNames: [contract.addQuote],
+      },
+      'The Quotes Notebook'
+    );
+  };
+
+  const signOut = () => {
+    wallet.signOut();
+    window.location.replace(window.location.origin + window.location.pathname);
+  };
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
+    <main>
+      <header>
+        <h1>The Quotes Notebook</h1>
+        {currentUser ? (
+          <button onClick={signOut}>Log out</button>
+        ) : (
+          <button onClick={signIn}>Log in</button>
+        )}
       </header>
-    </div>
+      {currentUser ? (
+        <Form onSubmit={onSubmit} currentUser={currentUser} />
+      ) : (
+        <SignIn />
+      )}
+      {!!currentUser && !!quotes.length && <Quotes quotes={quotes} />}
+    </main>
   );
-}
+};
 
 export default App;
